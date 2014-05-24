@@ -1,6 +1,6 @@
 xls-conversion
 ==============
 
-Some very basic macros to convert a csv formatted call record file to an xls.
-Needs lots of scenario checking but is basically functional so far.
+Some very basic python macros to transform csv formatted mobile phone call record files to an xls (moving column and changing field type).
+Needs lots of error handling.
 
