@@ -13,6 +13,42 @@ def correctDate(d):
 		y = date.group(3)
 		return datetime.date(int(y),int(m),int(d))
 
+def check_exclusion(dial,desc,cost):
+	# return True if we want to exclude this call
+	# the majority of calls will be local ie to number sarting with 22,99 etc try to match them first
+	if not dial:
+		return True
+	if len(dial) <= 8:
+		return True
+	print "cost", cost
+	#print float(cost)
+	if cost == 0:
+		return True
+	try:
+		# exclusion list
+		lst = ['^357','^00357','^90','^0090']
+		for i,prefix in enumerate(lst):
+			print "checking for prefix: ", prefix, "with dialed number" , dial
+			d = re.search(prefix,dial)
+			if d:
+				#print "desc ",desc
+				print "found ", prefix, "in ", dial
+				de = desc.find('%')
+				if de > -1:
+					# is roaming call so present for verification
+					print "found roaming call, processing: ", desc, " at position: ", de
+					return False
+				else:
+					print "Not roaming" 
+					return True	
+			else:
+				print "No match for: ", prefix
+		return False	
+	except:
+		print "exception found during exclusion check: ",dial
+		print sys.exc_info()[0]
+		return True
+
 def correctDialed(dial):
 	d = re.search(r'(\d+)',dial)
 	if d:
@@ -84,7 +120,8 @@ def writeHeaders(ws):
 	ws.cell(row=0,column=12).value = "Currency"
 	
 def main():
-	c = 1 
+	c = 1
+	l = 0 
 	wb = Workbook()
 	mo = raw_input('Please specify the 2 digit month of the calls.csv file: ')
 	dest = r'cyta_converted_' + mo + '.xlsx'
@@ -96,38 +133,47 @@ def main():
 			print "opening calls.csv"
 			reader = csv.reader(fin,delimiter=';')
 			for index,row in enumerate(reader):
+				l += 1
+				print "starting ",l
 				check = re.match('CALL',row[0])
 				if check:
-					dat = correctDate(row[17])
-					tim = correctTime(row[17])
-					ws.cell(row=c,column=0).value = dat # date
-					ws.cell(row=c,column=1).value = tim # time
-					asset = cap(row[7],20)
-					ws.cell(row=c,column=2).value = asset # asset number
-					dialed = correctDialed(row[15])
-					if dialed: dialed = cap(dialed,20)
-					ws.cell(row=c,column=3).value = dialed # dialed number
-					ws.cell(row=c,column=3).style.number_format.format_code = '0'
-					dur = correctDur(row[19])
-					ws.cell(row=c,column=4).value = dur # duration
+					# called_num,description,amount
 					cost = correctCost(row[12])
-					ws.cell(row=c,column=5).value = cost # cost
-					typ = correctType(row[22])
-					ws.cell(row=c,column=6).value = typ # type
-					dstn = cap(row[11],25)
-					ws.cell(row=c,column=7).value = dstn # destination
-					roam = correctRoam(row[11])
-					ws.cell(row=c,column=8).value = roam # roaming
-					direction = correctDir(row[21])
-					ws.cell(row=c,column=9).value = direction # direction
-					ws.cell(row=c,column=10).value = row[20] # data usage
-					url = cap(row[11],250)
-					ws.cell(row=c,column=11).value = url # url
-					ws.cell(row=c,column=12).value = 'EUR' # currency
-					c += 1
+					exclude = check_exclusion(row[15],row[11],cost)
+					if exclude:
+						print "excluding: ", "line ", l, row[15]
+					else:
+						print "processing ", l
+						dat = correctDate(row[17])
+						tim = correctTime(row[17])
+						ws.cell(row=c,column=0).value = dat # date
+						ws.cell(row=c,column=1).value = tim # time
+						asset = cap(row[7],20)
+						ws.cell(row=c,column=2).value = asset # asset number
+						dialed = correctDialed(row[15])
+						if dialed: dialed = cap(dialed,20)
+						ws.cell(row=c,column=3).value = dialed # dialed number
+						ws.cell(row=c,column=3).style.number_format.format_code = '0'
+						dur = correctDur(row[19])
+						ws.cell(row=c,column=4).value = dur # duration
+						cost = correctCost(row[12])
+						ws.cell(row=c,column=5).value = cost # cost
+						typ = correctType(row[22])
+						ws.cell(row=c,column=6).value = typ # type
+						dstn = cap(row[11],25)
+						ws.cell(row=c,column=7).value = dstn # destination
+						roam = correctRoam(row[11])
+						ws.cell(row=c,column=8).value = roam # roaming
+						direction = correctDir(row[21])
+						ws.cell(row=c,column=9).value = direction # direction
+						ws.cell(row=c,column=10).value = row[20] # data usage
+						url = cap(row[11],250)
+						ws.cell(row=c,column=11).value = url # url
+						ws.cell(row=c,column=12).value = 'EUR' # currency
+						c += 1
 		except:
-			print "failed"
-			#print sys.exc_info()[0]
+			print "failed opening csv file"
+			print sys.exc_info()[0]
 
 	print "saving " + dest
 	wb.save(filename = dest)
