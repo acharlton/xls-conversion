@@ -15,17 +15,19 @@ def correctDate(d):
 
 def check_exclusion(dial,desc,cost):
 	# return True if we want to exclude this call
-	# the majority of calls will be local ie to number sarting with 22,99 etc try to match them first
+	# the majority of calls will be local ie to number starting with 22,99 etc try to match them first
 	if not dial:
+		# if no characters in dialed number field
 		return True
 	if len(dial) <= 8:
+		# small numbers are local services
 		return True
-	print "cost", cost
-	#print float(cost)
 	if cost == 0:
+		# exclude zero cost calls
 		return True
+
+	# go though exclusion list
 	try:
-		# exclusion list
 		lst = ['^357','^00357','^90','^0090']
 		for i,prefix in enumerate(lst):
 			print "checking for prefix: ", prefix, "with dialed number" , dial
