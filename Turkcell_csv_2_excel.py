@@ -6,6 +6,45 @@ import sys
 import unicodedata
 from openpyxl import Workbook
 
+
+def check_exclusion(dial,desc,cost):
+        # return True if we want to exclude this call
+        # the majority of calls will be local ie to number starting with 22,99 etc try to match them first
+        if not dial:
+                # if no characters in dialed number field
+                return True
+        if len(dial) <= 8:
+                # small numbers are local services
+                return True
+        if cost == 0:
+                # exclude zero cost calls
+                return True
+
+        # go though exclusion list
+        try:
+                lst = ['^357','^00357','^90','^0090']
+                for i,prefix in enumerate(lst):
+                        print "checking for prefix: ", prefix, "with dialed number" , dial
+                        d = re.search(prefix,dial)
+                        if d:
+                                #print "desc ",desc
+                                print "found ", prefix, "in ", dial
+                                de = desc.find('%')
+                                if de > -1:
+                                        # is roaming call so present for verification
+                                        print "found roaming call, processing: ", desc, " at position: ", de
+                                        return False
+                                else:
+                                        print "Not roaming"
+                                        return True
+                        else:
+                                print "No match for: ", prefix
+                return False
+        except:
+                print "exception found during exclusion check: ",dial
+                print sys.exc_info()[0]
+                return True
+
 def correctDate(d):
 	try:
 		dt = re.search(r'(\d+)\/(\d+)\/(\d+)',d)
@@ -101,6 +140,7 @@ def writeHeaders(ws):
 def main():
 	csvfile = raw_input('Enter csv file you want to convert: ')
 	c = 1 
+	l = 0
 	wb = Workbook()
 	xl = re.sub('\.','-',csvfile)	
 	dest = xl + '-converted.xlsx'
@@ -115,37 +155,43 @@ def main():
 				if re.search(r'CUST',row[0]) is not None:
 					continue
 				if re.search(r'^\d+',row[0]) is not None:
-					dat = correctDate(row[4])
-					tim = correctTime(row[4])
-					ws.cell(row=c,column=0).value = dat # date
-					ws.cell(row=c,column=1).value = tim # time
-					asset = cap(row[1],20)
-					ws.cell(row=c,column=2).value = asset # asset number
-					dialed = correctDialed(row[2])
-					if dialed: dialed = cap(dialed,20)
-					ws.cell(row=c,column=3).value = dialed # dialed number
-					ws.cell(row=c,column=3).style.number_format.format_code = '0'
-					dur = correctDur(row[6])
-					ws.cell(row=c,column=4).value = dur # duration
-					cost = correctCost(row[8])
-					ws.cell(row=c,column=5).value = cost # cost
-					typ = correctType(row[5])
-					ws.cell(row=c,column=6).value = typ # type
-					
-					dstn = cap(row[5],25)
-					dstn = dstn.decode('ascii','ignore')
-					dstn = dstn.encode('ascii','ignore')
-					ws.cell(row=c,column=7).value = dstn # destination
-					roam = correctRoam(row[4])
-					ws.cell(row=c,column=8).value = roam # roaming
-					direction = correctDir(row[4])
-					ws.cell(row=c,column=9).value = direction # direction
-					ws.cell(row=c,column=10).value = row[7] # data usage
-					#url = cap(row[5],250)
-					url = ""
-					ws.cell(row=c,column=11).value = url # url
-					ws.cell(row=c,column=12).value = 'TRY' # currency
-					c += 1
+					# called_num,description,amount
+                                        cost = correctCost(row[8])
+                                        exclude = check_exclusion(row[2],row[5],cost)
+                                        if exclude:
+                                                print "excluding: ", "line ", l, row[15]
+                                        else:
+                                                print "processing ", l
+						dat = correctDate(row[4])
+						tim = correctTime(row[4])
+						ws.cell(row=c,column=0).value = dat # date
+						ws.cell(row=c,column=1).value = tim # time
+						asset = cap(row[1],20)
+						ws.cell(row=c,column=2).value = asset # asset number
+						dialed = correctDialed(row[2])
+						if dialed: dialed = cap(dialed,20)
+						ws.cell(row=c,column=3).value = dialed # dialed number
+						ws.cell(row=c,column=3).style.number_format.format_code = '0'
+						dur = correctDur(row[6])
+						ws.cell(row=c,column=4).value = dur # duration
+						cost = correctCost(row[8])
+						ws.cell(row=c,column=5).value = cost # cost
+						typ = correctType(row[5])
+						ws.cell(row=c,column=6).value = typ # type
+						dstn = cap(row[5],25)
+						dstn = dstn.decode('ascii','ignore')
+						dstn = dstn.encode('ascii','ignore')
+						ws.cell(row=c,column=7).value = dstn # destination
+						roam = correctRoam(row[4])
+						ws.cell(row=c,column=8).value = roam # roaming
+						direction = correctDir(row[4])
+						ws.cell(row=c,column=9).value = direction # direction
+						ws.cell(row=c,column=10).value = row[7] # data usage
+						#url = cap(row[5],250)
+						url = ""
+						ws.cell(row=c,column=11).value = url # url
+						ws.cell(row=c,column=12).value = 'TRY' # currency
+						c += 1
 				else:
 					print "line error", c
 					pass
@@ -161,6 +207,6 @@ def main():
 	wb.save(filename = dest)
 	
 if __name__ == "__main__":
-	sys.exit(main())
-	#main()
+	#sys.exit(main())
+	main()
 

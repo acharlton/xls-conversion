@@ -5,6 +5,44 @@ import re
 import sys
 from openpyxl import Workbook
 
+def check_exclusion(dial,desc,cost):
+        # return True if we want to exclude this call
+        # the majority of calls will be local ie to number starting with 22,99 etc try to match them first
+        if not dial:
+                # if no characters in dialed number field
+                return True
+        if len(dial) <= 8:
+                # small numbers are local services
+                return True
+        if cost == 0:
+                # exclude zero cost calls
+                return True
+
+        # go though exclusion list
+        try:
+                lst = ['^357','^00357','^90','^0090']
+                for i,prefix in enumerate(lst):
+                        print "checking for prefix: ", prefix, "with dialed number" , dial
+                        d = re.search(prefix,dial)
+                        if d:
+                                #print "desc ",desc
+                                print "found ", prefix, "in ", dial
+                                de = desc.find('%')
+                                if de > -1:
+                                        # is roaming call so present for verification
+                                        print "found roaming call, processing: ", desc, " at position: ", de
+                                        return False
+                                else:
+                                        print "Not roaming"
+                                        return True
+                        else:
+                                print "No match for: ", prefix
+                return False
+        except:
+                print "exception found during exclusion check: ",dial
+                print sys.exc_info()[0]
+                return True
+
 def correctDate(d):
 	date = re.search(r'(\d+)\-(\d+)\-(\d+)',d)
 	if date:
@@ -12,44 +50,6 @@ def correctDate(d):
 		m = date.group(2)
 		y = date.group(3)
 		return datetime.date(int(y),int(m),int(d))
-
-def check_exclusion(dial,desc,cost):
-	# return True if we want to exclude this call
-	# the majority of calls will be local ie to number starting with 22,99 etc try to match them first
-	if not dial:
-		# if no characters in dialed number field
-		return True
-	if len(dial) <= 8:
-		# small numbers are local services
-		return True
-	if cost == 0:
-		# exclude zero cost calls
-		return True
-
-	# go though exclusion list
-	try:
-		lst = ['^357','^00357','^90','^0090']
-		for i,prefix in enumerate(lst):
-			print "checking for prefix: ", prefix, "with dialed number" , dial
-			d = re.search(prefix,dial)
-			if d:
-				#print "desc ",desc
-				print "found ", prefix, "in ", dial
-				de = desc.find('%')
-				if de > -1:
-					# is roaming call so present for verification
-					print "found roaming call, processing: ", desc, " at position: ", de
-					return False
-				else:
-					print "Not roaming" 
-					return True	
-			else:
-				print "No match for: ", prefix
-		return False	
-	except:
-		print "exception found during exclusion check: ",dial
-		print sys.exc_info()[0]
-		return True
 
 def correctDialed(dial):
 	d = re.search(r'(\d+)',dial)
